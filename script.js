@@ -1,4 +1,3 @@
-
 const config = {
     type: Phaser.CANVAS, 
     scale: {
@@ -17,11 +16,14 @@ const config = {
 
 const game = new Phaser.Game(config);
 
-
 let player;
 let wasd;
 let spacebar;
 let tKey; 
+let eKey;
+let cKey;
+let vKey;
+let fKey;
 let bullets;
 let companionBullets; 
 let enemies; 
@@ -30,7 +32,6 @@ let gems;
 let barrels;      
 let acidPools;    
 let activeBomb = null; 
-
 
 let partnerAgent = null; 
 let partnerHealth = 50;  
@@ -44,9 +45,8 @@ let bulletCount = 1;
 let bulletKnockbackForce = 120; 
 const WORLD_SIZE = 1600; 
 
-
 let currentAmmo = 50;
-const MAX_AMMO = 50;
+let maxAmmo = 50;
 let isReloading = false;
 let reloadTimerText;
 let playerHealth = 100;
@@ -55,10 +55,8 @@ let lastHitTime = 0;
 const IMMUNITY_WINDOW = 400; 
 let collectedGems = 0; 
 
-
 let nextMeleeTime = 0;
 let meleeCooldownText;
-
 
 let killCount = 0;
 let killCountCheckpoint = 0; 
@@ -67,12 +65,10 @@ let bombInventory = 0;
 let bombInventoryText; 
 let fogVignette;
 
-
 let totalShotsFired = 0;
 let totalShotsHit = 0;
 let barrelsDestroyed = 0;
 let timeSpentInBerserk = 0;
-
 
 let gameTimer;
 let barrelSpawnerTimer;
@@ -84,6 +80,26 @@ let manualGroup;
 let upgradeUiGroup;
 let gameOverGroup; 
 
+// New Abilities variables
+let hasShrapnelBurst = false;
+let hasThornsArmor = false;
+let hasMagneticScoop = false;
+let hasQuickReload = false;
+let hasGhostWalk = false;
+let hasCryoGrenade = false;
+let hasTurret = false;
+let hasDecoy = false;
+
+let ghostWalkCooldown = 0;
+let cryoCooldown = 0;
+let turretCooldown = 0;
+let decoyCooldown = 0;
+
+let playerWallCollider;
+let isGhostWalking = false;
+let activeTurrets = [];
+let activeDecoy = null;
+let abilitiesText;
 
 let mazePattern = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -101,29 +117,24 @@ let mazePattern = [
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
 ];
 
-
 function preload() {
-    
     let playerCanvas = this.textures.createCanvas('hero', 28, 28);
     let pCtx = playerCanvas.context;
     pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, 28, 28);
     pCtx.fillStyle = '#00ffff'; pCtx.fillRect(20, 10, 8, 8); 
     playerCanvas.refresh();
 
-    
     let droneCanvas = this.textures.createCanvas('partner_drone', 26, 26);
     let dCtx = droneCanvas.context;
     dCtx.fillStyle = '#555566'; dCtx.fillRect(0, 0, 26, 26);
     dCtx.fillStyle = '#ffaa00'; dCtx.fillRect(18, 9, 8, 8); 
     droneCanvas.refresh();
 
-    
     let bulletCanvas = this.textures.createCanvas('bullet', 8, 4);
     let bCtx = bulletCanvas.context;
     bCtx.fillStyle = '#ffffff'; bCtx.fillRect(0, 0, 8, 4);
     bulletCanvas.refresh();
 
-    
     let wallCanvas = this.textures.createCanvas('wall_block', 64, 64);
     let wCtx = wallCanvas.context;
     wCtx.fillStyle = '#2d6a36'; wCtx.fillRect(0, 0, 64, 64);
@@ -135,40 +146,34 @@ function preload() {
     wCtx.fillRect(50, 45, 4, 8);
     wallCanvas.refresh();
 
-    
     let gemCanvas = this.textures.createCanvas('gem', 10, 10);
     let gCtx = gemCanvas.context;
     gCtx.fillStyle = '#00ffcc'; gCtx.fillRect(0, 0, 10, 10);
     gemCanvas.refresh();
 
-    
     let bombCanvas = this.textures.createCanvas('bomb_sprite', 20, 20);
     let boCtx = bombCanvas.context;
     boCtx.fillStyle = '#ff3333'; boCtx.beginPath(); boCtx.arc(10, 10, 10, 0, Math.PI * 2); boCtx.fill();
     boCtx.fillStyle = '#ffffff'; boCtx.fillRect(8, 8, 4, 4); 
     bombCanvas.refresh();
 
-    
     let barrelCanvas = this.textures.createCanvas('barrel_sprite', 24, 32);
     let baCtx = barrelCanvas.context;
     baCtx.fillStyle = '#00cc44'; baCtx.fillRect(0, 0, 24, 32);
     baCtx.fillStyle = '#003311'; baCtx.fillRect(0, 6, 24, 4); baCtx.fillRect(0, 22, 24, 4);
     barrelCanvas.refresh();
 
-    
     let poolCanvas = this.textures.createCanvas('acid_pool', 96, 96);
     let poCtx = poolCanvas.context;
     poCtx.fillStyle = 'rgba(0, 255, 68, 0.4)'; poCtx.beginPath(); poCtx.arc(48, 48, 44, 0, Math.PI * 2); poCtx.fill();
     poolCanvas.refresh();
 
-    
     createEnemyTexture(this, 'enemy_red', '#ff0044');       
     createEnemyTexture(this, 'enemy_orange', '#ff6600');    
     createEnemyTexture(this, 'enemy_yellow', '#ffff00');    
     createEnemyTexture(this, 'enemy_exploder', '#00ff00');  
     createEnemyTexture(this, 'enemy_ghost', '#aa00ff');     
 
-    
     let fogCanvas = this.textures.createCanvas('edge_fog', 800, 600);
     let fCtx = fogCanvas.context;
     let gradient = fCtx.createRadialGradient(400, 300, 200, 400, 300, 480);
@@ -177,6 +182,17 @@ function preload() {
     gradient.addColorStop(1, 'rgba(2, 2, 5, 1)');       
     fCtx.fillStyle = gradient; fCtx.fillRect(0, 0, 800, 600);
     fogCanvas.refresh();
+
+    let cryoCanvas = this.textures.createCanvas('cryo_grenade', 16, 16);
+    let crCtx = cryoCanvas.context;
+    crCtx.fillStyle = '#00ffff'; crCtx.beginPath(); crCtx.arc(8, 8, 8, 0, Math.PI * 2); crCtx.fill();
+    cryoCanvas.refresh();
+
+    let turretCanvas = this.textures.createCanvas('turret_sprite', 24, 24);
+    let tuCtx = turretCanvas.context;
+    tuCtx.fillStyle = '#666666'; tuCtx.fillRect(0,0,24,24);
+    tuCtx.fillStyle = '#ff0000'; tuCtx.fillRect(10,0,4,12);
+    turretCanvas.refresh();
 }
 
 function createEnemyTexture(scene, key, color) {
@@ -186,7 +202,6 @@ function createEnemyTexture(scene, key, color) {
     ctx.fillStyle = '#000000'; ctx.fillRect(4, 5, 4, 4); ctx.fillRect(14, 5, 4, 4);
     canvas.refresh();
 }
-
 
 function create() {
     this.physics.world.setBounds(0, 0, WORLD_SIZE, WORLD_SIZE);
@@ -213,9 +228,12 @@ function create() {
     });
     spacebar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     tKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.T);
+    eKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.E);
+    cKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    vKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.V);
+    fKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.F);
 
-    
-    this.physics.add.collider(player, walls);
+    playerWallCollider = this.physics.add.collider(player, walls);
     this.physics.add.collider(enemies, walls, null, (enemy, wall) => { return !enemy.isGhost; }); 
     this.physics.add.collider(enemies, enemies); 
     this.physics.add.collider(barrels, bullets, detonateBarrel, null, this);
@@ -251,7 +269,6 @@ function buildLabyrinthWalls() {
         }
     }
 }
-
 
 function showStartMenu() {
     gameState = 'START_MENU';
@@ -310,7 +327,6 @@ function showTacticalManual() {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(26);
     manualGroup.add(manualHeader);
 
-    
     let detailedGuideString = 
         `[1] CORE MISSION OBJECTIVE PARAMETERS\n` +
         `    - PRIMARY GOAL: NEUTRALIZE EXACTLY 1000 ENEMIES BEFORE TIME RUNS OUT.\n` +
@@ -348,19 +364,17 @@ function showTacticalManual() {
     });
 }
 
-
 function update() {
     if (gameState !== 'PLAYING') return;
 
-    
-    let actualReloadSpeed = 2000; 
+    let actualReloadSpeed = hasQuickReload ? 1000 : 2000; 
     if (playerHealth <= 30) {
         actualReloadSpeed = 600; 
         timeSpentInBerserk++;
         if (this.time.now % 200 < 100) player.setTint(0xffaa00);
         else player.clearTint();
     } else {
-        player.clearTint();
+        if (!isGhostWalking) player.clearTint();
     }
 
     player.setVelocity(0);
@@ -374,9 +388,104 @@ function update() {
     let pointer = this.input.activePointer;
     player.rotation = Phaser.Math.Angle.Between(player.x, player.y, pointer.worldX, pointer.worldY);
 
+    if (hasMagneticScoop) {
+        gems.children.each(gem => {
+            if (gem.active && Phaser.Math.Distance.Between(player.x, player.y, gem.x, gem.y) < 200) {
+                let angle = Phaser.Math.Angle.Between(gem.x, gem.y, player.x, player.y);
+                gem.x += Math.cos(angle) * 5; 
+                gem.y += Math.sin(angle) * 5;
+            }
+        });
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(eKey) && hasGhostWalk) {
+        hasGhostWalk = false;
+        isGhostWalking = true;
+        playerWallCollider.active = false;
+        player.setAlpha(0.4);
+        this.time.delayedCall(4000, () => {
+            isGhostWalking = false;
+            playerWallCollider.active = true;
+            player.setAlpha(1);
+        });
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(cKey) && hasCryoGrenade) {
+        hasCryoGrenade = false;
+        let cX = player.x, cY = player.y;
+        let bomb = this.add.sprite(cX, cY, 'cryo_grenade').setDepth(11);
+        this.tweens.add({ targets: bomb, alpha: 0.2, duration: 200, yoyo: true, repeat: 4 });
+        this.time.delayedCall(1000, () => {
+            bomb.destroy();
+            this.cameras.main.shake(100, 0.01);
+            let blast = this.add.graphics().fillStyle(0x00ffff, 0.4).fillCircle(cX, cY, 200).setDepth(10);
+            this.time.delayedCall(200, () => blast.destroy());
+            enemies.children.each(e => {
+                if (e.active && Phaser.Math.Distance.Between(cX, cY, e.x, e.y) <= 200) {
+                    e.isFrozen = true;
+                    e.freezeExpiration = this.time.now + 5000;
+                    e.setTint(0x00ffff);
+                }
+            });
+        });
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(vKey) && hasTurret) {
+        hasTurret = false;
+        let tX = player.x, tY = player.y;
+        let turret = this.physics.add.sprite(tX, tY, 'turret_sprite').setDepth(12);
+        turret.lastFired = 0;
+        activeTurrets.push(turret);
+        this.time.delayedCall(15000, () => {
+            let idx = activeTurrets.indexOf(turret);
+            if(idx > -1) activeTurrets.splice(idx, 1);
+            this.cameras.main.shake(150, 0.015);
+            let boom = this.add.graphics().fillStyle(0xff8800, 0.5).fillCircle(tX, tY, 150).setDepth(10);
+            this.time.delayedCall(150, () => boom.destroy());
+            enemies.children.each(e => {
+                if (e.active && Phaser.Math.Distance.Between(tX, tY, e.x, e.y) <= 150) {
+                    gems.create(e.x, e.y, 'gem');
+                    registerElimination.call(this);
+                    e.destroy();
+                }
+            });
+            turret.destroy();
+        });
+    }
+
+    if (Phaser.Input.Keyboard.JustDown(fKey) && hasDecoy && this.time.now > decoyCooldown) {
+        decoyCooldown = this.time.now + 20000;
+        activeDecoy = this.add.sprite(player.x, player.y, 'hero').setAlpha(0.6).setTint(0x0088ff).setDepth(10);
+        this.time.delayedCall(8000, () => {
+            if (activeDecoy) { activeDecoy.destroy(); activeDecoy = null; }
+        });
+    }
+
+    activeTurrets.forEach(turret => {
+        if (!turret.active) return;
+        let nearest = null; let minDist = 350;
+        enemies.children.each(e => {
+            if (e.active) {
+                let d = Phaser.Math.Distance.Between(turret.x, turret.y, e.x, e.y);
+                if (d < minDist) { minDist = d; nearest = e; }
+            }
+        });
+        if (nearest) {
+            let angle = Phaser.Math.Angle.Between(turret.x, turret.y, nearest.x, nearest.y);
+            turret.rotation = angle;
+            if (this.time.now > turret.lastFired) {
+                let pBullet = companionBullets.get(turret.x, turret.y);
+                if (pBullet) {
+                    pBullet.setActive(true).setVisible(true).setRotation(angle).setTint(0xff8800);
+                    this.physics.velocityFromRotation(angle, 550, pBullet.body.velocity);
+                    turret.lastFired = this.time.now + 300;
+                }
+            }
+        }
+    });
+
     if (partnerAgent && partnerAgent.active) {
         let distanceToOwner = Phaser.Math.Distance.Between(partnerAgent.x, partnerAgent.y, player.x, player.y);
-        
         if (distanceToOwner > 70) {
             let angleToPlayer = Phaser.Math.Angle.Between(partnerAgent.x, partnerAgent.y, player.x, player.y);
             partnerAgent.body.setVelocity(Math.cos(angleToPlayer) * 140, Math.sin(angleToPlayer) * 140);
@@ -413,20 +522,21 @@ function update() {
         }
     }
 
-    
     if (pointer.isDown && this.time.now > lastFired && !isReloading) {
         if (currentAmmo > 0) {
             totalShotsFired += bulletCount;
             if (bulletCount === 1) {
-                fireBullet.call(this, player.rotation);
+                fireBullet.call(this, player.rotation, player.x, player.y);
             } else {
-                fireBullet.call(this, player.rotation - 0.15);
-                fireBullet.call(this, player.rotation);
-                fireBullet.call(this, player.rotation + 0.15);
+                let spread = 0.15;
+                let startAngle = player.rotation - (Math.floor(bulletCount / 2) * spread);
+                for (let i = 0; i < bulletCount; i++) {
+                    fireBullet.call(this, startAngle + (i * spread), player.x, player.y);
+                }
             }
             
             currentAmmo--;
-            reloadTimerText.setText('MAG: ' + currentAmmo + '/50 | GEMS: ' + collectedGems + '/60');
+            reloadTimerText.setText('MAG: ' + currentAmmo + '/' + maxAmmo + ' | GEMS: ' + collectedGems + '/60');
             lastFired = this.time.now + fireRate;
 
             if (currentAmmo <= 0) triggerReload.call(this, actualReloadSpeed);
@@ -443,7 +553,6 @@ function update() {
         meleeCooldownText.setText('MELEE PUSH (SPACE): READY');
     }
 
-    
     enemies.children.each(function(enemy) {
         if (enemy.active && enemy.body) {
             
@@ -458,22 +567,31 @@ function update() {
                 }
             }
 
-            
-            
             if (enemy.isStunned && this.time.now < enemy.stunExpiration) {
-                
                 enemy.body.setDrag(150);
                 return; 
             }
             
-            
+            if (enemy.isFrozen && this.time.now < enemy.freezeExpiration) {
+                enemy.body.setVelocity(0, 0);
+                return;
+            } else if (enemy.isFrozen) {
+                enemy.isFrozen = false;
+                enemy.clearTint();
+            }
+
             enemy.isStunned = false;
             enemy.body.setDrag(0);
 
             let distToPlayer = Phaser.Math.Distance.Between(enemy.x, enemy.y, player.x, player.y);
             let distToDrone = (partnerAgent && partnerAgent.active) ? Phaser.Math.Distance.Between(enemy.x, enemy.y, partnerAgent.x, partnerAgent.y) : 99999;
+            let distToDecoy = (activeDecoy && activeDecoy.active) ? Phaser.Math.Distance.Between(enemy.x, enemy.y, activeDecoy.x, activeDecoy.y) : 99999;
             
-            let focusTarget = (distToDrone < distToPlayer) ? partnerAgent : player;
+            let focusTarget = player;
+            let minTargetDist = distToPlayer;
+
+            if (distToDrone < minTargetDist) { focusTarget = partnerAgent; minTargetDist = distToDrone; }
+            if (distToDecoy < minTargetDist) { focusTarget = activeDecoy; minTargetDist = distToDecoy; }
 
             let targetX = focusTarget.x;
             let targetY = focusTarget.y;
@@ -495,23 +613,27 @@ function update() {
                 }
             }
 
-            
-            
             let angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, targetX, targetY);
             this.physics.velocityFromRotation(angle, enemy.speedStat, enemy.body.velocity);
             enemy.rotation = angle;
         }
     }, this);
+
+    let abStr = [];
+    if (hasGhostWalk) abStr.push('[E] GHOST: RDY');
+    if (hasCryoGrenade) abStr.push('[C] CRYO: RDY');
+    if (hasTurret) abStr.push('[V] TURRET: RDY');
+    if (hasDecoy) abStr.push('[F] DECOY: ' + (this.time.now > decoyCooldown ? 'RDY' : Math.ceil((decoyCooldown - this.time.now)/1000) + 's'));
+    if (abStr.length > 0) abilitiesText.setText(abStr.join(' | '));
 }
 
-function fireBullet(angle) {
-    let bullet = bullets.get(player.x, player.y);
+function fireBullet(angle, startX, startY) {
+    let bullet = bullets.get(startX, startY);
     if (bullet) {
         bullet.setActive(true).setVisible(true).setRotation(angle);
         this.physics.velocityFromRotation(angle, 650, bullet.body.velocity);
     }
 }
-
 
 function triggerMeleeEmergencyPush() {
     if (this.time.now < nextMeleeTime) return; 
@@ -530,18 +652,13 @@ function triggerMeleeEmergencyPush() {
             let distance = Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y);
             if (distance <= pushRadius) {
                 let pushAngle = Phaser.Math.Angle.Between(player.x, player.y, enemy.x, enemy.y);
-                
-                
                 enemy.isStunned = true;
                 enemy.stunExpiration = this.time.now + 600; 
-                
-                
                 enemy.body.setVelocity(Math.cos(pushAngle) * 600, Math.sin(pushAngle) * 600);
             }
         }
     }, this);
 }
-
 
 function handleBombMechanic() {
     if (!activeBomb) {
@@ -569,7 +686,6 @@ function handleBombMechanic() {
         activeBomb.destroy(); activeBomb = null;
     }
 }
-
 
 function spawnAcidBarrels() {
     if (gameState !== 'PLAYING') return;
@@ -624,14 +740,12 @@ function burnEnemyByAcid(enemy, pool) {
     }
 }
 
-
 function registerElimination() {
     killCount++;
     killCountCheckpoint++;
     
     killScoreText.setText('ELIMINATIONS: ' + String(killCount).padStart(3, '0'));
 
-    
     if (killCount >= 1000) {
         endGame.call(this, 'VICTORY\nElimination Goal Achieved!', '#00ffcc');
         return;
@@ -639,14 +753,11 @@ function registerElimination() {
 
     if (killCountCheckpoint >= 50) {
         killCountCheckpoint = 0; 
-        
         playerHealth = Math.min(100, playerHealth + 10); 
         healthText.setText('VITALITY: ' + playerHealth + '%');
-
         this.cameras.main.flash(150, 0, 255, 100, false);
     }
 }
-
 
 function triggerReload(cooldownSpeed) {
     isReloading = true;
@@ -659,12 +770,11 @@ function triggerReload(cooldownSpeed) {
     });
 
     this.time.delayedCall(cooldownSpeed, () => {
-        flashAlert.destroy(); currentAmmo = 50; isReloading = false; fogVignette.clearTint(); 
+        flashAlert.destroy(); currentAmmo = maxAmmo; isReloading = false; fogVignette.clearTint(); 
         reloadTimerText.setVisible(true).setStyle({ fill: '#ffffff' });
-        reloadTimerText.setText('MAG: ' + currentAmmo + '/50 | GEMS: ' + collectedGems + '/60');
+        reloadTimerText.setText('MAG: ' + currentAmmo + '/' + maxAmmo + ' | GEMS: ' + collectedGems + '/60');
     });
 }
-
 
 function spawnGatedHorde() {
     if (gameState !== 'PLAYING') return;
@@ -716,13 +826,11 @@ function spawnGatedHorde() {
     }
 }
 
-
 function damageEnemy(bullet, enemy) {
     if (bullet.active && enemy.active) {
         bullet.setActive(false).setVisible(false).body.stop();
         if (bullet.texture.key === 'bullet') totalShotsHit++; 
 
-        
         let knockbackAngle = Phaser.Math.Angle.Between(player.x, player.y, enemy.x, enemy.y);
         if(!enemy.isStunned) {
             enemy.body.setVelocity(Math.cos(knockbackAngle) * bulletKnockbackForce, Math.sin(knockbackAngle) * bulletKnockbackForce);
@@ -735,6 +843,13 @@ function damageEnemy(bullet, enemy) {
             
             this.cameras.main.shake(100, 0.005);
             registerElimination.call(this);
+
+            if (hasShrapnelBurst) {
+                for (let i = 0; i < 3; i++) {
+                    fireBullet.call(this, Math.random() * Math.PI * 2, enemy.x, enemy.y);
+                }
+            }
+
             enemy.destroy();
         } else {
             enemy.setTint(0xffffff);
@@ -772,11 +887,22 @@ function damagePlayer(playerSprite, enemy) {
     if (gameState !== 'PLAYING') return;
     if (this.time.now > lastHitTime + IMMUNITY_WINDOW) {
         lastHitTime = this.time.now;
-        let attackAngle = Phaser.Math.Angle.Between(enemy.x, enemy.y, player.x, player.y);
+        
         if (enemy.isExploder) {
             enemy.destroy(); triggerExploderBlast.call(this, enemy.x, enemy.y);
         } else {
-            applyBiteDamage.call(this, 15, false);
+            if (hasThornsArmor) {
+                enemy.healthPool -= 15;
+                enemy.setTint(0xff0000);
+                if (enemy.healthPool <= 0) {
+                    gems.create(enemy.x, enemy.y, 'gem');
+                    registerElimination.call(this);
+                    enemy.destroy();
+                } else {
+                    this.time.delayedCall(100, () => { if (enemy.active) enemy.clearTint(); });
+                }
+            }
+            applyBiteDamage.call(this, 3, false);
         }
     }
 }
@@ -785,7 +911,7 @@ function createDroneCollider(scene) {
     scene.physics.add.overlap(enemies, partnerAgent, (partner, enemy) => {
         if (gameState !== 'PLAYING') return;
         if (scene.time.now % 600 < 30) { 
-            applyBiteDamage.call(scene, 10, true); 
+            applyBiteDamage.call(scene, 3, true); 
         }
     }, null, scene);
 }
@@ -807,7 +933,7 @@ function applyBiteDamage(damageAmount, isHitTargetDrone) {
         healthText.setText('VITALITY: ' + playerHealth + '%');
         this.cameras.main.shake(200, 0.02);
         player.setTint(0xff0000);
-        this.time.delayedCall(150, () => { player.clearTint(); });
+        this.time.delayedCall(150, () => { if (!isGhostWalking) player.clearTint(); });
 
         if (playerHealth <= 0) endGame.call(this, 'MISSION COMPROMISED\nYou were overrun.', '#ff0000');
     }
@@ -816,14 +942,13 @@ function applyBiteDamage(damageAmount, isHitTargetDrone) {
 function collectGem(playerSprite, gem) {
     if (gameState !== 'PLAYING') return;
     gem.destroy(); collectedGems++;
-    reloadTimerText.setText('MAG: ' + currentAmmo + '/50 | GEMS: ' + collectedGems + '/60');
+    reloadTimerText.setText('MAG: ' + currentAmmo + '/' + maxAmmo + ' | GEMS: ' + collectedGems + '/60');
 
     if (collectedGems >= 60) {
-        collectedGems = 0; reloadTimerText.setText('MAG: ' + currentAmmo + '/50 | GEMS: ' + collectedGems + '/60');
+        collectedGems = 0; reloadTimerText.setText('MAG: ' + currentAmmo + '/' + maxAmmo + ' | GEMS: ' + collectedGems + '/60');
         showUpgradeShop.call(this);
     }
 }
-
 
 function showUpgradeShop() {
     gameState = 'UPGRADE_MENU';
@@ -840,11 +965,24 @@ function showUpgradeShop() {
     }).setOrigin(0.5).setScrollFactor(0).setDepth(31);
     upgradeUiGroup.add(title);
 
-    const choices = [
+    let availableUpgrades = [
         { name: '[ BOOST SPEED AGILITY ]', desc: 'Increases WASD keyboard velocity settings by 25%.', action: () => { playerSpeed *= 1.25; } },
-        { name: '[ UPGRADE MULTI-BARREL ]', desc: 'Weapon transitions to an advanced 3-bullet spread cone layout.', action: () => { bulletCount = 3; } },
+        { name: '[ UPGRADE MULTI-BARREL ]', desc: 'Weapon transitions to an advanced spread layout, adding 2 extra bullets.', action: () => { bulletCount += 2; } },
         { name: '[ HEAVY IMPACT KNOCKBACK ]', desc: 'Increases bullet recoil knockback thrust impact force by 150%.', action: () => { bulletKnockbackForce *= 2.5; } },
+        { name: '[ EXPAND MAGAZINE ]', desc: 'Increases maximum ammo capacity by 50 rounds.', action: () => { maxAmmo += 50; currentAmmo += 50; reloadTimerText.setText('MAG: ' + currentAmmo + '/' + maxAmmo + ' | GEMS: ' + collectedGems + '/60'); } }
     ];
+
+    if (!hasShrapnelBurst) availableUpgrades.push({ name: '[ SHRAPNEL BURST ]', desc: 'Enemies explode into 3 bullets upon death.', action: () => { hasShrapnelBurst = true; }});
+    if (!hasThornsArmor) availableUpgrades.push({ name: '[ THORNS ARMOR ]', desc: 'Deal massive return damage to enemies that touch you.', action: () => { hasThornsArmor = true; }});
+    if (!hasMagneticScoop) availableUpgrades.push({ name: '[ MAGNETIC SCOOP ]', desc: 'Automatically pulls nearby dropped gems towards you.', action: () => { hasMagneticScoop = true; }});
+    if (!hasQuickReload) availableUpgrades.push({ name: '[ QUICK RELOAD MECHANISM ]', desc: 'Permanently cuts base reload times in half.', action: () => { hasQuickReload = true; }});
+    if (!hasGhostWalk) availableUpgrades.push({ name: '[ GHOST WALK ] (Key E)', desc: 'Consumable: Pass through walls for 4s. One-time use.', action: () => { hasGhostWalk = true; }});
+    if (!hasCryoGrenade) availableUpgrades.push({ name: '[ CRYO GRENADE ] (Key C)', desc: 'Consumable: Freeze enemies in area for 5s. One-time use.', action: () => { hasCryoGrenade = true; }});
+    if (!hasTurret) availableUpgrades.push({ name: '[ TURRET DEPLOYMENT ] (Key V)', desc: 'Consumable: Deploy shooting turret. One-time use.', action: () => { hasTurret = true; }});
+    if (!hasDecoy) availableUpgrades.push({ name: '[ DECOY HOLOGRAM ] (Key F)', desc: 'Active ability: Hologram draws enemy fire (20s CD).', action: () => { hasDecoy = true; }});
+
+    Phaser.Utils.Array.Shuffle(availableUpgrades);
+    const choices = availableUpgrades.slice(0, 3);
 
     if (!partnerAgent) {
         choices.push({
@@ -881,7 +1019,6 @@ function showUpgradeShop() {
     });
 }
 
-
 function triggerLabyrinthStructuralShift() {
     this.cameras.main.flash(600, 255, 0, 0, false); 
     this.cameras.main.shake(500, 0.02);
@@ -909,14 +1046,14 @@ function triggerLabyrinthStructuralShift() {
     spawnAcidBarrels.call(this);
 }
 
-
 function setupHudUI() {
     healthText = this.add.text(20, 20, 'VITALITY: ' + playerHealth + '%', { fontSize: '20px', fill: '#ff4444', fontFamily: 'monospace' }).setScrollFactor(0).setDepth(50).setVisible(false);
-    reloadTimerText = this.add.text(20, 50, 'MAG: ' + currentAmmo + '/50 | GEMS: ' + collectedGems + '/60', { fontSize: '18px', fill: '#ffffff', fontFamily: 'monospace' }).setScrollFactor(0).setDepth(50).setVisible(false);
+    reloadTimerText = this.add.text(20, 50, 'MAG: ' + currentAmmo + '/' + maxAmmo + ' | GEMS: ' + collectedGems + '/60', { fontSize: '18px', fill: '#ffffff', fontFamily: 'monospace' }).setScrollFactor(0).setDepth(50).setVisible(false);
     timerText = this.add.text(400, 20, 'TIME TILL EXTINCTION: 10:00', { fontSize: '20px', fill: '#ffff00', fontFamily: 'monospace' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50).setVisible(false);
     killScoreText = this.add.text(780, 20, 'ELIMINATIONS: 000', { fontSize: '20px', fill: '#ff0044', fontFamily: 'monospace', fontWeight: 'bold' }).setOrigin(1, 0).setScrollFactor(0).setDepth(50).setVisible(false);
     bombInventoryText = this.add.text(780, 50, 'CHARGES (T): 0', { fontSize: '18px', fill: '#ffaa00', fontFamily: 'monospace' }).setOrigin(1, 0).setScrollFactor(0).setDepth(50).setVisible(false);
-    meleeCooldownText = this.add.text(400, 560, 'MELEE PUSH (SPACE): READY', { fontSize: '16px', fill: '#00ffff', fontFamily: 'monospace' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50).setVisible(false);
+    meleeCooldownText = this.add.text(400, 555, 'MELEE PUSH (SPACE): READY', { fontSize: '16px', fill: '#00ffff', fontFamily: 'monospace' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50).setVisible(false);
+    abilitiesText = this.add.text(400, 575, '', { fontSize: '14px', fill: '#00ffcc', fontFamily: 'monospace' }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(50).setVisible(false);
 }
 
 function setHudVisibility(visible) {
@@ -924,6 +1061,7 @@ function setHudVisibility(visible) {
     timerText.setVisible(visible); killScoreText.setVisible(visible);
     bombInventoryText.setVisible(visible); meleeCooldownText.setVisible(visible);
     fogVignette.setVisible(visible);
+    abilitiesText.setVisible(visible);
 }
 
 function updateClock() {
@@ -940,7 +1078,6 @@ function updateClock() {
 
     if (totalTimeSeconds <= 0) endGame.call(this, 'SURVIVED\nExtraction successful!', '#00ffcc');
 }
-
 
 function endGame(message, color) {
     gameState = 'GAME_OVER';
@@ -994,13 +1131,34 @@ function resetGameVariables() {
     acidPools.clear(true, true);
     if (activeBomb) { activeBomb.destroy(); activeBomb = null; }
     if (partnerAgent) { partnerAgent.destroy(); partnerAgent = null; }
+    if (activeDecoy) { activeDecoy.destroy(); activeDecoy = null; }
+    activeTurrets.forEach(t => t.destroy());
+    activeTurrets = [];
 
     player.clearTint();
+    player.setAlpha(1);
+    if(playerWallCollider) playerWallCollider.active = true;
+    isGhostWalking = false;
     player.x = 800; player.y = 352;
     player.body.reset(800, 352);
 
+    hasShrapnelBurst = false;
+    hasThornsArmor = false;
+    hasMagneticScoop = false;
+    hasQuickReload = false;
+    hasGhostWalk = false;
+    hasCryoGrenade = false;
+    hasTurret = false;
+    hasDecoy = false;
+
+    ghostWalkCooldown = 0;
+    cryoCooldown = 0;
+    turretCooldown = 0;
+    decoyCooldown = 0;
+
     playerHealth = 100;
-    currentAmmo = 50;
+    maxAmmo = 50;
+    currentAmmo = maxAmmo;
     collectedGems = 0;
     killCount = 0;
     killCountCheckpoint = 0;
@@ -1035,10 +1193,11 @@ function resetGameVariables() {
     buildLabyrinthWalls.call(this);
 
     healthText.setText('VITALITY: ' + playerHealth + '%');
-    reloadTimerText.setText('MAG: ' + currentAmmo + '/50 | GEMS: ' + collectedGems + '/60');
+    reloadTimerText.setText('MAG: ' + currentAmmo + '/' + maxAmmo + ' | GEMS: ' + collectedGems + '/60');
     timerText.setText('TIME TILL EXTINCTION: 10:00');
     killScoreText.setText('ELIMINATIONS: 000');
     bombInventoryText.setText('CHARGES (T): 0');
+    abilitiesText.setText('');
 
     setHudVisibility(true);
     gameState = 'PLAYING';
