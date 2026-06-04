@@ -420,9 +420,11 @@ function update() {
             if (bulletCount === 1) {
                 fireBullet.call(this, player.rotation);
             } else {
-                fireBullet.call(this, player.rotation - 0.15);
-                fireBullet.call(this, player.rotation);
-                fireBullet.call(this, player.rotation + 0.15);
+                let spread = 0.15;
+                let startAngle = player.rotation - (Math.floor(bulletCount / 2) * spread);
+                for (let i = 0; i < bulletCount; i++) {
+                    fireBullet.call(this, startAngle + (i * spread));
+                }
             }
             
             currentAmmo--;
@@ -746,12 +748,12 @@ function damageEnemy(bullet, enemy) {
 function triggerExploderBlast(exX, exY) {
     this.cameras.main.shake(150, 0.01);
     let boomCircle = this.add.graphics().fillStyle(0x00ff00, 0.4); 
-    boomCircle.fillCircle(exX, exY, 110);
+    boomCircle.fillCircle(exX, exY, 60);
     this.time.delayedCall(120, () => { boomCircle.destroy(); });
 
     enemies.children.each(function(enemy) {
         if (enemy && enemy.active && !enemy.isExploder) {
-            if (Phaser.Math.Distance.Between(exX, exY, enemy.x, enemy.y) <= 110) {
+            if (Phaser.Math.Distance.Between(exX, exY, enemy.x, enemy.y) <= 60) {
                 gems.create(enemy.x, enemy.y, 'gem'); 
                 registerElimination.call(this);
                 enemy.destroy();
@@ -759,11 +761,11 @@ function triggerExploderBlast(exX, exY) {
         }
     }, this);
 
-    if (Phaser.Math.Distance.Between(exX, exY, player.x, player.y) <= 110) {
+    if (Phaser.Math.Distance.Between(exX, exY, player.x, player.y) <= 60) {
         applyBiteDamage.call(this, 25, false); 
     }
 
-    if (partnerAgent && partnerAgent.active && Phaser.Math.Distance.Between(exX, exY, partnerAgent.x, partnerAgent.y) <= 110) {
+    if (partnerAgent && partnerAgent.active && Phaser.Math.Distance.Between(exX, exY, partnerAgent.x, partnerAgent.y) <= 60) {
         applyBiteDamage.call(this, 25, true);  
     }
 }
@@ -776,7 +778,7 @@ function damagePlayer(playerSprite, enemy) {
         if (enemy.isExploder) {
             enemy.destroy(); triggerExploderBlast.call(this, enemy.x, enemy.y);
         } else {
-            applyBiteDamage.call(this, 15, false);
+            applyBiteDamage.call(this, 3, false);
         }
     }
 }
@@ -785,7 +787,7 @@ function createDroneCollider(scene) {
     scene.physics.add.overlap(enemies, partnerAgent, (partner, enemy) => {
         if (gameState !== 'PLAYING') return;
         if (scene.time.now % 600 < 30) { 
-            applyBiteDamage.call(scene, 10, true); 
+            applyBiteDamage.call(scene, 3, true); 
         }
     }, null, scene);
 }
@@ -842,7 +844,7 @@ function showUpgradeShop() {
 
     const choices = [
         { name: '[ BOOST SPEED AGILITY ]', desc: 'Increases WASD keyboard velocity settings by 25%.', action: () => { playerSpeed *= 1.25; } },
-        { name: '[ UPGRADE MULTI-BARREL ]', desc: 'Weapon transitions to an advanced 3-bullet spread cone layout.', action: () => { bulletCount = 3; } },
+        { name: '[ UPGRADE MULTI-BARREL ]', desc: 'Weapon transitions to an advanced spread layout, adding 2 extra bullets.', action: () => { bulletCount += 2; } },
         { name: '[ HEAVY IMPACT KNOCKBACK ]', desc: 'Increases bullet recoil knockback thrust impact force by 150%.', action: () => { bulletKnockbackForce *= 2.5; } },
     ];
 
