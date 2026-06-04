@@ -420,11 +420,9 @@ function update() {
             if (bulletCount === 1) {
                 fireBullet.call(this, player.rotation);
             } else {
-                let spread = 0.15;
-                let startAngle = player.rotation - (Math.floor(bulletCount / 2) * spread);
-                for (let i = 0; i < bulletCount; i++) {
-                    fireBullet.call(this, startAngle + (i * spread));
-                }
+                fireBullet.call(this, player.rotation - 0.15);
+                fireBullet.call(this, player.rotation);
+                fireBullet.call(this, player.rotation + 0.15);
             }
             
             currentAmmo--;
@@ -778,7 +776,7 @@ function damagePlayer(playerSprite, enemy) {
         if (enemy.isExploder) {
             enemy.destroy(); triggerExploderBlast.call(this, enemy.x, enemy.y);
         } else {
-            applyBiteDamage.call(this, 3, false);
+            applyBiteDamage.call(this, 15, false);
         }
     }
 }
@@ -787,7 +785,7 @@ function createDroneCollider(scene) {
     scene.physics.add.overlap(enemies, partnerAgent, (partner, enemy) => {
         if (gameState !== 'PLAYING') return;
         if (scene.time.now % 600 < 30) { 
-            applyBiteDamage.call(scene, 3, true); 
+            applyBiteDamage.call(scene, 10, true); 
         }
     }, null, scene);
 }
@@ -844,7 +842,7 @@ function showUpgradeShop() {
 
     const choices = [
         { name: '[ BOOST SPEED AGILITY ]', desc: 'Increases WASD keyboard velocity settings by 25%.', action: () => { playerSpeed *= 1.25; } },
-        { name: '[ UPGRADE MULTI-BARREL ]', desc: 'Weapon transitions to an advanced spread layout, adding 2 extra bullets.', action: () => { bulletCount += 2; } },
+        { name: '[ UPGRADE MULTI-BARREL ]', desc: 'Weapon transitions to an advanced 3-bullet spread cone layout.', action: () => { bulletCount = 3; } },
         { name: '[ HEAVY IMPACT KNOCKBACK ]', desc: 'Increases bullet recoil knockback thrust impact force by 150%.', action: () => { bulletKnockbackForce *= 2.5; } },
     ];
 
