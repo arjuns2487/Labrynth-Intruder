@@ -1,8 +1,12 @@
 
 const config = {
     type: Phaser.CANVAS, 
-    width: 800,
-    height: 600,
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        width: 800,
+        height: 600
+    },
     backgroundColor: '#05050d', 
     physics: {
         default: 'arcade',
@@ -122,8 +126,13 @@ function preload() {
     
     let wallCanvas = this.textures.createCanvas('wall_block', 64, 64);
     let wCtx = wallCanvas.context;
-    wCtx.fillStyle = '#0a0a1a'; wCtx.fillRect(0, 0, 64, 64);
-    wCtx.strokeStyle = '#2222aa'; wCtx.strokeRect(0, 0, 64, 64); 
+    wCtx.fillStyle = '#2d6a36'; wCtx.fillRect(0, 0, 64, 64);
+    wCtx.strokeStyle = '#1e4824'; wCtx.strokeRect(0, 0, 64, 64);
+    wCtx.fillStyle = '#3a8b46';
+    wCtx.fillRect(10, 20, 4, 12);
+    wCtx.fillRect(45, 15, 4, 15);
+    wCtx.fillRect(25, 40, 4, 10);
+    wCtx.fillRect(50, 45, 4, 8);
     wallCanvas.refresh();
 
     
@@ -192,7 +201,7 @@ function create() {
 
     buildLabyrinthWalls.call(this);
 
-    player = this.physics.add.sprite(96, 96, 'hero');
+    player = this.physics.add.sprite(800, 352, 'hero');
     player.setCollideWorldBounds(true).body.setCircle(14); 
 
     this.cameras.main.setBounds(0, 0, WORLD_SIZE, WORLD_SIZE);
@@ -987,8 +996,8 @@ function resetGameVariables() {
     if (partnerAgent) { partnerAgent.destroy(); partnerAgent = null; }
 
     player.clearTint();
-    player.x = 96; player.y = 96;
-    player.body.reset(96, 96);
+    player.x = 800; player.y = 352;
+    player.body.reset(800, 352);
 
     playerHealth = 100;
     currentAmmo = 50;
